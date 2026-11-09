@@ -49,7 +49,7 @@ public class HoldsEndpointsTests(PostgresFixture postgres) : IntegrationTest(pos
 
         var expires = json.GetProperty("expiresAt").GetDateTime();
         var serverTime = json.GetProperty("serverTime").GetDateTime();
-        (expires - serverTime).TotalSeconds.Should().BeInRange(599, 600);
+        (expires - serverTime).TotalSeconds.Should().BeInRange(600, 601, "a hold lasts at least HOLD_DURATION_SECONDS, rounded up to a whole second");
     }
 
     [Fact]

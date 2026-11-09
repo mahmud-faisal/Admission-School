@@ -20,7 +20,20 @@ public class ExpiryTests(PostgresFixture postgres) : IntegrationTest(postgres)
         ["HOLD_SWEEPER_ENABLED"] = "false",
     };
 
-    private static Task WaitForExpiry() => Task.Delay(TimeSpan.FromSeconds(HoldSeconds + 1.2));
+    // expires_at is rounded up to a whole second, so a hold lasts between HoldSeconds and HoldSeconds + 1.
+    private static Task WaitForExpiry() => Task.Delay(TimeSpan.FromSeconds(HoldSeconds + 1.5));
+
+    [Fact]
+    public async Task Expiry_HoldLastsAtLeastHoldDurationSeconds()
+    {
+        var classId = await CreateClassAsync();
+        var holdId = await ApplyOkAsync(classId, Sid(1));
+
+        await Task.Delay(TimeSpan.FromSeconds(HoldSeconds - 0.5));
+
+        (await ReadJsonAsync(await Client.GetAsync($"/holds/{holdId}"))).GetProperty("status").GetString().Should().Be("HELD");
+        (await ConfirmAsync(holdId, Sid(1))).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 
     [Fact]
     public async Task Expiry_SeatReleasedWithoutApiCallOrSweeper()

@@ -46,12 +46,16 @@ internal sealed class HoldRepository(AdmissionDbContext db) : IHoldRepository
     {
         try
         {
-            // expires_at is cut to whole seconds so the stored value and the JSON value are identical.
+            // expires_at is rounded UP to a whole second, so the stored value and the JSON value are identical and a
+            // hold always lasts at least HOLD_DURATION_SECONDS (at most 1 s longer), never less.
             var rows = await db.Database.SqlQuery<HoldSqlRow>($"""
                 WITH ins AS (
                     INSERT INTO holds (id, class_id, student_id, status, created_at, expires_at)
                     VALUES ({holdId}, {classId}, {studentId}, 'HELD', {dbNow},
-                            date_trunc('second', {dbNow}::timestamptz) + make_interval(secs => {holdDurationSeconds}))
+                            CASE WHEN {dbNow}::timestamptz = date_trunc('second', {dbNow}::timestamptz)
+                                 THEN {dbNow}::timestamptz
+                                 ELSE date_trunc('second', {dbNow}::timestamptz) + interval '1 second'
+                            END + make_interval(secs => {holdDurationSeconds}))
                     RETURNING *
                 )
                 SELECT ins.id AS "Id", ins.class_id AS "ClassId", c.name AS "ClassName", ins.student_id AS "StudentId",
