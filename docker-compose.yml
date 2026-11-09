@@ -1,6 +1,14 @@
 # School Admission System
-#   Backend tests (Docker only):  docker compose --profile test run --rm backend-tests
-# The backend and frontend services are added in Checkpoint 6.
+#
+#   Run the app:          docker compose up --build
+#                         frontend http://localhost:3000 · API http://localhost:8080
+#                         Swagger  http://localhost:8080/swagger · Scalar http://localhost:8080/scalar
+#   Backend tests:        docker compose --profile test run --rm backend-tests
+#   Frontend tests:       docker compose --profile test run --rm frontend-tests
+#   Bonus (2 backends):   docker compose --profile bonus up -d --build
+#                         docker compose --profile bonus run --rm bonus-check
+#
+# Data lives in the named volume `pgdata`: `docker compose down` keeps it, `down -v` deletes it.
 
 services:
   db:
@@ -18,7 +26,84 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
 
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    ports:
+      - "8080:8080"
+    environment: &backend-env
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=admission;Username=admission;Password=admission"
+      HOLD_DURATION_SECONDS: "${HOLD_DURATION_SECONDS:-600}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}"
+      ASPNETCORE_ENVIRONMENT: Production
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runtime
+      args:
+        VITE_API_BASE_URL: "http://localhost:8080"
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      # Read by the browser at runtime via /env.js; change it without rebuilding the image.
+      API_BASE_URL: "${API_BASE_URL:-http://localhost:8080}"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  # ---- bonus: a second backend PROCESS on another port, same database ----
+  backend2:
+    profiles: ["bonus"]
+    build:
+      context: ./backend
+      target: runtime
+    ports:
+      - "8081:8080"
+    environment: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy # backend applies the migrations first
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  bonus-check:
+    profiles: ["bonus"]
+    image: curlimages/curl:8.11.1
+    # tr strips CR in case the repo was checked out with Windows line endings.
+    entrypoint: ["sh", "-c", "tr -d '\\015' < /scripts/bonus-oversell.sh | sh"]
+    volumes:
+      - ./scripts:/scripts:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      backend2:
+        condition: service_healthy
+
+  # ---- tests (Docker only) ----
   backend-tests:
     profiles: ["test"]
     build:
@@ -30,6 +115,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  frontend-tests:
+    profiles: ["test"]
+    build:
+      context: ./frontend
+      target: test
 
 volumes:
   pgdata:
