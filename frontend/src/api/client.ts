@@ -61,7 +61,14 @@ export async function fetchJson<T>(path: string, options: RequestOptions = {}): 
   const ended = Date.now();
   setServerReachable(true);
 
-  const text = await response.text();
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    // The connection dropped while the body was being read.
+    setServerReachable(false);
+    throw new NetworkError();
+  }
   let data: unknown;
   if (text) {
     try {
