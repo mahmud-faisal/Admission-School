@@ -3,8 +3,8 @@
 #   Run the app:          docker compose up --build
 #                         frontend http://localhost:3000 · API http://localhost:8080
 #                         Swagger  http://localhost:8080/swagger · Scalar http://localhost:8080/scalar
-#   Backend tests:        docker compose --profile test run --rm backend-tests
-#   Frontend tests:       docker compose --profile test run --rm frontend-tests
+#   Backend tests:        docker compose --profile test run --rm --build backend-tests
+#   Frontend tests:       docker compose --profile test run --rm --build frontend-tests
 #   Bonus (2 backends):   docker compose --profile bonus up -d --build
 #                         docker compose --profile bonus run --rm bonus-check
 #

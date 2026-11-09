@@ -45,8 +45,8 @@ docker compose down -v   # removes the data too (fresh start)
 All tests run with Docker only:
 
 ```bash
-docker compose --profile test run --rm backend-tests    # 68 unit + 75 integration tests (real PostgreSQL)
-docker compose --profile test run --rm frontend-tests   # 44 Vitest + React Testing Library tests
+docker compose --profile test run --rm --build backend-tests    # 68 unit + 75 integration tests (real PostgreSQL)
+docker compose --profile test run --rm --build frontend-tests   # 44 Vitest + React Testing Library tests
 ```
 
 The backend integration tests include the required concurrency tests:
