@@ -64,3 +64,8 @@ FluentAssertions 7.x.
 - **Pay/Cancel:** only enabled for the hold's own student (the entered ID matches the hold's `studentId`) while it is HELD and not past `expiresAt`, measured on the server-corrected clock.
 - **Countdown clock:** corrected for clock skew using `serverTime` (DB clock) from hold responses, or the `X-Server-Time` header.
 - **Polling:** classes every 3 s, an open application every 5 s while HELD, My applications every 5 s.
+
+## Added in Checkpoint 7 (from the verification reviews)
+- **`GET /holds/{id}` is public:** the spec lists no header for it, so anyone with the (unguessable, UUIDv7-based) hold ID can read it, including `studentId`. Pay and cancel still require the owner's `X-Student-Id`.
+- **`X-Student-Id` with surrounding spaces is accepted:** ASP.NET Core trims header values before validation; the value must still be exactly 17 digits.
+- **OpenAPI** documents one `409` per endpoint. The individual `code` values (SEATS_FULL, DUPLICATE_APPLICATION, HOLD_EXPIRED, ...) are listed in DESIGN.md §8.4 and in the schema description of `code`.
