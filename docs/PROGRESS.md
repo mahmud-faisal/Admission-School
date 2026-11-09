@@ -2,8 +2,8 @@
 
 | # | Checkpoint            | Status                | Last commit | Notes |
 |---|-----------------------|-----------------------|-------------|-------|
-| 0 | Bootstrap             | AWAITING CONFIRMATION | 2bd8ef0     | Baseline (spec) commit: 4701d13. Local tools: Docker 29.6.1, Compose v5.3.0, .NET SDK 10.0.401, Node 24.14.1. |
-| 1 | Design & plan         | NOT STARTED           |             |       |
+| 0 | Bootstrap             | DONE                  | 44c08cf     | Baseline (spec) commit: 4701d13. Local tools: Docker 29.6.1, Compose v5.3.0, .NET SDK 10.0.401, Node 24.14.1. |
+| 1 | Design & plan         | IN PROGRESS           |             |       |
 | 2 | Backend core          | NOT STARTED           |             |       |
 | 3 | API                   | NOT STARTED           |             |       |
 | 4 | Backend tests         | NOT STARTED           |             |       |
