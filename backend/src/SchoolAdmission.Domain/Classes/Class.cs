@@ -14,12 +14,11 @@ public sealed class Class
         Name = string.Empty;
     }
 
-    private Class(string id, string name, int totalSeats, DateTime createdAt)
+    private Class(string id, string name, int totalSeats)
     {
         Id = id;
         Name = name;
         TotalSeats = totalSeats;
-        CreatedAt = createdAt;
     }
 
     /// <summary>"c_" + 32 lowercase hex characters.</summary>
@@ -29,10 +28,10 @@ public sealed class Class
 
     public int TotalSeats { get; private set; }
 
-    /// <summary>UTC.</summary>
+    /// <summary>UTC. Set by the database (<c>DEFAULT now()</c>) on insert, so every process uses the DB clock.</summary>
     public DateTime CreatedAt { get; private set; }
 
-    public static Class Create(string id, string name, int totalSeats, DateTime createdAtUtc)
+    public static Class Create(string id, string name, int totalSeats)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(name);
@@ -48,6 +47,6 @@ public sealed class Class
             throw new ArgumentOutOfRangeException(nameof(totalSeats), totalSeats, $"Seats must be {MinSeats}..{MaxSeats}.");
         }
 
-        return new Class(id, trimmed, totalSeats, DateTime.SpecifyKind(createdAtUtc.ToUniversalTime(), DateTimeKind.Utc));
+        return new Class(id, trimmed, totalSeats);
     }
 }
