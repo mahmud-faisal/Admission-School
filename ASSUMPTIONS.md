@@ -1,71 +1,97 @@
-# Assumptions (draft)
+# Assumptions
 
-Where the spec is silent, this is what we decided and why.
+Where the spec is silent or unclear, this is what I decided and why.
+
+## How two backend processes never oversell (bonus §1.6)
+
+The rule `held + confirmed <= totalSeats` is enforced **inside PostgreSQL**, never in application memory. So it
+holds for any number of backend processes on the same database. The `bonus` compose profile runs two of them,
+and a test starts two real OS processes against one database.
+
+1. **Apply** (`POST /classes/{id}/holds`) is one READ COMMITTED transaction:
+   `SELECT … FROM classes WHERE id = @c FOR UPDATE` → read `clock_timestamp()` → mark this class's stale holds
+   EXPIRED → check for a duplicate → count `HELD (not expired) + CONFIRMED` → insert, or return 409.
+   The row lock is held by PostgreSQL until COMMIT. A transaction from *any* process that wants the same class waits
+   at the first statement. Under READ COMMITTED, each later statement takes a fresh snapshot, so the waiting
+   transaction then sees the first one's committed insert. That makes "count, then insert" atomic per class.
+   REPEATABLE READ would count from a stale snapshot, so it is deliberately not used.
+2. **Confirm** and **cancel** are single conditional UPDATEs
+   (`… WHERE id=@h AND student_id=@s AND status='HELD' AND expires_at > now()`). HELD → CONFIRMED can happen at most
+   once, so `confirmedSeats` grows once however many confirms arrive. Confirm moves a seat from held to confirmed,
+   and cancel and expiry only free seats, so none of them can push the count over the limit.
+   If a confirm and an expiry race on the same row, PostgreSQL's row lock lets exactly one win.
+3. **One clock:** every expiry decision uses the database clock (`now()` / `clock_timestamp()`), so all processes
+   agree on when a hold has expired.
+4. **One active application per student per class:** checked inside the locked transaction, and backed by a
+   partial unique index on `(class_id, student_id) WHERE status IN ('HELD','CONFIRMED')`. An index condition
+   cannot use `now()`, so step 1 first marks this class's expired-but-unswept holds as EXPIRED, under the lock,
+   which lets a student re-apply after expiry.
+5. **The background sweeper** is safe in several processes at once: its UPDATE uses `FOR UPDATE SKIP LOCKED` and only
+   touches rows still `HELD`. Correctness never depends on it.
+6. In-process locks (`lock`, `SemaphoreSlim`) would only serialize requests inside one process. Two processes could
+   both count 9/10 and both insert, giving 11/10. That is why none are used.
 
 ## API behaviour
-- **Wrong student** (confirm/cancel someone else's hold) → `403 FORBIDDEN`. The hold exists; the caller just does not own it. Ownership is checked before status, so nothing about the hold leaks.
-- **Confirm an expired hold** → `409 HOLD_EXPIRED`. It conflicts with the hold's current state; the client can apply again.
-- **Confirm a cancelled hold** → `409 HOLD_CANCELLED`. Same reasoning.
-- **Confirm an already-confirmed hold (same student)** → `200` with no change. The spec requires confirm to be idempotent.
-- **Cancel an already-cancelled hold** → `204`. DELETE is idempotent.
-- **Cancel a CONFIRMED hold** → not allowed, `409 HOLD_ALREADY_CONFIRMED`. The fee is paid; refunds and withdrawals are out of scope.
-- **Cancel an expired hold** → `409 HOLD_EXPIRED`. The seat is already released; there is nothing to cancel.
-- **Applying twice to the same class** → `409 DUPLICATE_APPLICATION`. This is checked before seat availability, because that message is more useful.
-- **Re-applying after expiry or cancellation** → allowed, and it creates a new hold id. The rule only limits *active or confirmed* holds.
-- **`GET /holds/{id}` needs no `X-Student-Id`** (it is ignored if sent). The spec does not list a header for it, and hold IDs cannot realistically be guessed.
-- **`X-Student-Id`** must be exactly 17 ASCII digits (leading zeros allowed); otherwise `400 INVALID_STUDENT_ID`. This is what the spec says, and checking ASCII rules out Unicode digits.
-- **Duplicate class names** are allowed. Shifts can share names, and automated tests may create the same name many times; the ID is the identity.
-- **Class input limits:** name trimmed, 1–200 characters; `totalSeats` an integer in 1–100000 → otherwise `400 VALIDATION_FAILED`. A class with 0 seats makes no sense, and the upper bound stops absurd input.
-- **`GET /me/holds`** returns all of the student's holds (every status), newest first. The spec says "all applications … and the status of each".
-- **Errors** use RFC 7807 ProblemDetails with an extra `code` field (e.g. `SEATS_FULL`). The spec defines no error format, and a machine-readable code lets the UI show clear messages.
-- **Extra response fields** (e.g. `className`, `createdAt`, `serverTime`, seat counts on create) are added and no spec field is removed. The spec allows extra fields.
-- **No authentication** for the admin "create class" screen. The spec says no login is needed.
 
-## Time and IDs
-- **Time zone:** all timestamps are stored as `timestamptz` and returned as UTC ISO-8601 ending in `Z`. This avoids any ambiguity for clients in other time zones.
-- **Clock:** every expiry decision uses the PostgreSQL clock (`now()` / `clock_timestamp()`), so several backend processes always agree.
-- **`expiresAt` precision:** cut to whole seconds, so the stored value and the JSON value are identical. A hold lasts at most 1 s less than `HOLD_DURATION_SECONDS`.
-- **Expiry:** a HELD hold whose `expiresAt` has passed counts and reads as `EXPIRED` right away (computed on read). A background sweeper (every 10 s by default) also updates the stored rows. Seats are freed even if no job has run.
-- **ID format:** `c_` / `h_` + 32 hex characters (UUIDv7). Time-ordered for good indexing and not guessable; the spec leaves the format open.
+- **Another student's hold** (confirm or cancel) → `403 FORBIDDEN`. Ownership is checked before status, so nothing
+  about the hold leaks.
+- **Confirm an expired / cancelled hold** → `409 HOLD_EXPIRED` / `409 HOLD_CANCELLED`.
+  **Confirm an already-confirmed hold** of the same student → `200`, and nothing changes (idempotent).
+- **Cancel a CONFIRMED hold** → `409 HOLD_ALREADY_CONFIRMED`. The fee is paid; refunds are out of scope.
+  **Cancel an expired hold** → `409 HOLD_EXPIRED`. **Cancel an already-cancelled hold** → `204` (DELETE is idempotent).
+- **Applying twice to the same class** → `409 DUPLICATE_APPLICATION`, checked before seat availability because that
+  message is more useful. **Re-applying after expiry or cancellation** is allowed and creates a new hold.
+- **`GET /holds/{id}` needs no `X-Student-Id`**, because the spec lists no header for it. Anyone with the
+  unguessable hold ID can read it, including `studentId`; pay and cancel still require the owner's header.
+- **`X-Student-Id`** must be exactly 17 ASCII digits (leading zeros allowed), otherwise `400 INVALID_STUDENT_ID`.
+  Unicode digits are rejected. ASP.NET Core trims surrounding spaces from header values.
+- **Class input:** the name is trimmed and must be 1–200 characters; `totalSeats` must be a JSON integer from 1 to
+  100000 (`"7"` as a string is rejected). Otherwise `400 VALIDATION_FAILED`. **Duplicate class names are allowed**,
+  because shifts can share names and the ID is the identity.
+- **`GET /me/holds`** returns all of the student's applications (every status), newest first.
+- **Errors** use RFC 7807 ProblemDetails plus a machine-readable `code` (e.g. `SEATS_FULL`). The spec defines no
+  error format. **Extra response fields** (`className`, `createdAt`, `serverTime`, seat counts on create) are added;
+  no spec field is removed or renamed.
+- **No authentication** for the admin "create class" screen, because the spec says no login is needed.
+- **API versioning** reads `api-version` from a header or the query string, with 1.0 assumed when none is given.
+  The paths must stay exactly as in the spec, so there is no URL-segment versioning and no `/api/v1` alias.
 
-## Concurrency (bonus, draft)
-- Each hold creation locks the class row in PostgreSQL (`SELECT … FOR UPDATE`), then counts and inserts in the same transaction. The lock lives in the database, so it works across any number of backend processes; in-process locks would not. Confirm and cancel are single conditional UPDATEs. A partial unique index backs the one-active-hold-per-student rule.
+## Time, expiry and IDs
 
-## Tooling and stack
-- **.NET 10** is used; the spec allows ".NET 8 or newer".
-- **API versioning** reads `api-version` from a header or the query string, with default 1.0 assumed. The spec says the paths must be exact, so we do not use URL-segment versioning.
-- **MediatR 12.x** (Apache-2.0) is used. v13+ needs a licence key.
-- **FluentAssertions 7.x** (Apache-2.0) is used. v8+ has a commercial licence.
-- **Swagger UI (`/swagger`) and Scalar (`/scalar`)** are enabled in all environments, because graders run the non-Development Docker image.
-- **Ports:** backend 8080 (spec), frontend 3000. PostgreSQL is not published to the host, so it cannot clash with a local install.
-- **Frontend API URL:** `VITE_API_BASE_URL` at build time, overridden at runtime by `API_BASE_URL` (written to `/env.js`). The URL can then change without a rebuild. It must be reachable from the browser (e.g. `http://localhost:8080`).
-- **Line endings:** LF everywhere (`.gitattributes`), so shell scripts work inside Linux containers.
+- All timestamps are `timestamptz` and returned as UTC ISO-8601 ending in `Z`.
+- **`expiresAt`** is rounded **up** to a whole second, so a hold lasts between `HOLD_DURATION_SECONDS` and
+  `HOLD_DURATION_SECONDS + 1` seconds, never less. The stored value and the JSON value are then identical.
+- **Expiry is computed on read:** a HELD hold past `expiresAt` immediately counts and reads as `EXPIRED`, so its seat
+  is free without any API call or background job. A sweeper (every 10 s, `HOLD_SWEEP_INTERVAL_SECONDS`) also
+  updates the stored rows.
+- **The `X-Server-Time` header** uses the API server's clock and is informational only; the UI uses it to correct
+  countdown skew. Hold responses also carry `serverTime` from the database clock, which the UI prefers.
+- **IDs:** `c_` / `h_` + 32 hex characters (UUIDv7): time-ordered for good indexing and not guessable.
 
-## Confirmed by the user (2026-11-09)
-All recommended answers to the Checkpoint 1 open questions were accepted: cancelling a CONFIRMED hold → 409
-`HOLD_ALREADY_CONFIRMED`; another student's hold → 403 `FORBIDDEN`; cancelling an expired hold → 409 `HOLD_EXPIRED`;
-duplicate class names allowed; no `/api/v1` aliases; seats 1–100000; `GET /holds/{id}` needs no header;
-`expiresAt` cut to whole seconds; sweeper every 10 s (`HOLD_SWEEP_INTERVAL_SECONDS`); frontend on port 3000;
-FluentAssertions 7.x.
+## Frontend
 
-## Added in Checkpoint 3
-- **Numbers sent as strings** (`"totalSeats": "7"`): rejected with 400. The contract uses JSON numbers, and ASP.NET's web default (accept strings) would hide client bugs.
-- **`X-Server-Time` header:** uses the API server's clock and is informational only (it helps the UI correct countdown skew). Every expiry decision, and the `serverTime` field in hold responses, uses the database clock.
-- **OpenAPI:** generated by the built-in .NET 10 generator through the `Asp.Versioning.OpenApi` bridge, at `/openapi/v1.json`. 405 and 5xx responses are not listed per operation; they still return problem+json with a `code`.
-
-## Added in Checkpoint 4
-- **PostgreSQL `max_connections=500`** in docker compose. Each backend process keeps a connection pool (Npgsql default: 100), so two processes (the bonus) plus the test runner can exceed the default of 100. At that point PostgreSQL rejects connections and the API returns 500s.
-- **Integration tests use a real PostgreSQL:** Testcontainers locally, or the compose `db` service through `TEST_DATABASE_URL`. Each test gets its own database, cloned from a migrated template.
-
-## Added in Checkpoint 5 (frontend)
-- **Package versions:** the latest release of each well-established major (React 19, TanStack Query 5, React Router 7, Vite 7, Vitest 3, TypeScript 5.9, MSW 2), not the brand-new majors, for a reliable build on the graders' machines.
-- **Student ID field:** accepts digits only and at most 17. Only a valid 17-digit value is saved to localStorage and used. While the user is editing, the last valid ID stays saved, so a refresh still restores it. Clearing the field removes it.
-- **Apply on a full class:** the button is disabled when `availableSeats` is 0. If seats run out between polls, the server's 409 `SEATS_FULL` is shown as a plain message.
-- **Pay/Cancel:** only enabled for the hold's own student (the entered ID matches the hold's `studentId`) while it is HELD and not past `expiresAt`, measured on the server-corrected clock.
-- **Countdown clock:** corrected for clock skew using `serverTime` (DB clock) from hold responses, or the `X-Server-Time` header.
+- The **student ID** field accepts digits only, at most 17. Only a valid ID is saved to localStorage and used, so
+  ongoing applications are visible after a refresh or a browser restart. Clearing the field removes it.
+- **Pay and Cancel** are enabled only for the hold's own student, while it is HELD and not past `expiresAt` on the
+  server-corrected clock. The status flips to EXPIRED and Pay is disabled at zero, with no reload.
 - **Polling:** classes every 3 s, an open application every 5 s while HELD, My applications every 5 s.
+  **Apply** is disabled for a full class. If seats run out between polls, the 409 is shown as a plain message.
+- The **backend URL** is `VITE_API_BASE_URL` at build time and `API_BASE_URL` at runtime (written to `/env.js` at
+  container start, no rebuild). It must be reachable from the **browser** (`http://localhost:8080`).
 
-## Added in Checkpoint 7 (from the verification reviews)
-- **`GET /holds/{id}` is public:** the spec lists no header for it, so anyone with the (unguessable, UUIDv7-based) hold ID can read it, including `studentId`. Pay and cancel still require the owner's `X-Student-Id`.
-- **`X-Student-Id` with surrounding spaces is accepted:** ASP.NET Core trims header values before validation; the value must still be exactly 17 digits.
-- **OpenAPI** documents one `409` per endpoint. The individual `code` values (SEATS_FULL, DUPLICATE_APPLICATION, HOLD_EXPIRED, ...) are listed in DESIGN.md §8.4 and in the schema description of `code`.
+## Infrastructure and tooling
+
+- **.NET 10** (the spec allows ".NET 8 or newer"). **MediatR 12.5** and **FluentAssertions 7.2** are used because newer
+  majors require commercial licences or keys. Frontend packages use the latest release of each well-established
+  major (React 19, Vite 7, Vitest 3, TypeScript 5.9).
+- **Swagger UI (`/swagger`) and Scalar (`/scalar`)** are enabled in every environment, because graders run the
+  non-Development Docker image.
+- **Ports:** backend 8080 (spec), frontend 3000 (`FRONTEND_PORT`). PostgreSQL is not published to the host, so it
+  cannot clash with a local install.
+- **PostgreSQL `max_connections=500`:** each backend process keeps a connection pool (Npgsql default 100), so two
+  processes plus tests can exceed PostgreSQL's default of 100, which caused 500 errors in testing.
+- **Migrations** run at startup with retry while PostgreSQL starts; data lives in the named volume `pgdata`.
+- **Line endings** are LF (`.gitattributes`), and the images also strip CRs from shell scripts, so a Windows
+  checkout cannot break the containers.
+- **Integration tests** use a real PostgreSQL (Testcontainers locally, or the compose `db` service), with one
+  fresh database per test cloned from a migrated template.
