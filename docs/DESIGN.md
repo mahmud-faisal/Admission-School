@@ -1,6 +1,6 @@
 # School Admission System — Design
 
-Status: Checkpoint 1 draft. Source of truth for requirements: `School_Admission_System_Assignment_EN.md`
+Status: Checkpoint 1, approved by the user on 2026-11-09 (all recommended answers to open questions accepted). Source of truth for requirements: `School_Admission_System_Assignment_EN.md`
 (read-only). Where this document and the spec disagree, the spec wins.
 
 ---
@@ -17,7 +17,7 @@ Status: Checkpoint 1 draft. Source of truth for requirements: `School_Admission_
 | Test framework | xUnit v3 (`xunit.v3`) | — | None. We use v3 because it has `Assert.Skip`/`Assert.SkipUnless` for env-dependent tests. |
 | Frontend | React 18+ / TypeScript / Vite / TanStack Query v5 / React Router v6+ | React 18+ | None. |
 | API versioning | `Asp.Versioning.Mvc` + `.Mvc.ApiExplorer` + `Asp.Versioning.OpenApi` (10.x) | Exact paths in §1.4 | Possible conflict, resolved in favor of the spec: versioning uses header/query only, **paths are not changed**. See §8.2. |
-| Optional `/api/v1/...` aliases | **Not added by default** | Exact paths | They would duplicate every operation in OpenAPI. Open question Q3. |
+| Optional `/api/v1/...` aliases | **Not added by default** | Exact paths | They would duplicate every operation in OpenAPI. Confirmed by the user (Q3). |
 
 ---
 

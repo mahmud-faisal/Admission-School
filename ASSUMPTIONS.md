@@ -40,3 +40,10 @@ Where the spec is silent, this is what we decided and why.
 - **Ports:** backend 8080 (spec), frontend 3000. PostgreSQL is not published to the host, so it cannot clash with a local install.
 - **Frontend API URL:** `VITE_API_BASE_URL` at build time, overridden at runtime by `API_BASE_URL` (written to `/env.js`). The URL can then change without a rebuild. It must be reachable from the browser (e.g. `http://localhost:8080`).
 - **Line endings:** LF everywhere (`.gitattributes`), so shell scripts work inside Linux containers.
+
+## Confirmed by the user (2026-11-09)
+All recommended answers to the Checkpoint 1 open questions were accepted: cancelling a CONFIRMED hold → 409
+`HOLD_ALREADY_CONFIRMED`; another student's hold → 403 `FORBIDDEN`; cancelling an expired hold → 409 `HOLD_EXPIRED`;
+duplicate class names allowed; no `/api/v1` aliases; seats 1–100000; `GET /holds/{id}` needs no header;
+`expiresAt` cut to whole seconds; sweeper every 10 s (`HOLD_SWEEP_INTERVAL_SECONDS`); frontend on port 3000;
+FluentAssertions 7.x.
