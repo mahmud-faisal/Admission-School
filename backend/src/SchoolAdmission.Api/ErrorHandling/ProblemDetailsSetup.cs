@@ -20,21 +20,20 @@ public static class ProblemDetailsSetup
             problem.Extensions.TryAdd("traceId",
                 ctx.HttpContext.Features.Get<IHttpActivityFeature>()?.Activity?.Id ?? ctx.HttpContext.TraceIdentifier);
 
-            if (!problem.Extensions.ContainsKey(CodeKey))
+            // Asp.Versioning writes its own PascalCase "code" (e.g. "UnsupportedApiVersion"); replace it with ours.
+            // Its problem types end in #unsupported / #invalid / #ambiguous / #unspecified.
+            if (problem.Type?.StartsWith("https://docs.api-versioning.org/problems", StringComparison.Ordinal) == true)
+            {
+                problem.Extensions[CodeKey] = ErrorCodes.UnsupportedApiVersion;
+            }
+            else if (!problem.Extensions.ContainsKey(CodeKey))
             {
                 problem.Extensions[CodeKey] = DefaultCode(problem);
             }
         });
 
-    private static string DefaultCode(ProblemDetails problem)
-    {
-        // Asp.Versioning problem types end in #unsupported / #invalid / #ambiguous / #unspecified.
-        if (problem.Type?.StartsWith("https://docs.api-versioning.org/problems", StringComparison.Ordinal) == true)
-        {
-            return ErrorCodes.UnsupportedApiVersion;
-        }
-
-        return problem.Status switch
+    private static string DefaultCode(ProblemDetails problem) =>
+        problem.Status switch
         {
             StatusCodes.Status400BadRequest => ErrorCodes.ValidationFailed,
             StatusCodes.Status403Forbidden => ErrorCodes.Forbidden,
@@ -44,5 +43,4 @@ public static class ProblemDetailsSetup
             StatusCodes.Status415UnsupportedMediaType => ErrorCodes.UnsupportedMediaType,
             _ => ErrorCodes.InternalError,
         };
-    }
 }

@@ -12,7 +12,6 @@ public static class JsonSetup
     public static void Configure(JsonSerializerOptions o)
     {
         o.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        o.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
         o.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
         o.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
         o.Converters.Add(new UtcDateTimeConverter());

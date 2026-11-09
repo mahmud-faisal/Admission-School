@@ -43,10 +43,24 @@ public static class ModelStateProblemFactory
         return char.ToLowerInvariant(k[0]) + k[1..];
     }
 
-    private static string FriendlyMessage(string key, string raw) =>
-        key == "totalSeats" && raw.Contains("could not be converted", StringComparison.Ordinal)
-            ? "Total seats must be a whole number."
-            : key == "body" && raw.Contains("non-empty request body", StringComparison.Ordinal)
-                ? "A JSON body with name and totalSeats is required."
-                : raw;
+    private static string FriendlyMessage(string key, string raw)
+    {
+        if (key == "totalSeats" && raw.Contains("could not be converted", StringComparison.Ordinal))
+        {
+            return "Total seats must be a whole number.";
+        }
+
+        if (key == "name" && raw.Contains("could not be converted", StringComparison.Ordinal))
+        {
+            return "Class name must be text.";
+        }
+
+        // System.Text.Json parser errors ("... Path: $.x | LineNumber: 0 | BytePositionInLine: 8.") are not user-friendly.
+        if (raw.Contains("LineNumber:", StringComparison.Ordinal) || raw.Contains("is invalid JSON", StringComparison.Ordinal))
+        {
+            return "The request body is not valid JSON.";
+        }
+
+        return raw;
+    }
 }
