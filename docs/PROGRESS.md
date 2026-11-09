@@ -8,6 +8,6 @@
 | 3 | API                   | DONE                  | 83f207a     | 8 endpoints at spec paths; contract re-audit 47 PASS / 0 FAIL. |
 | 4 | Backend tests         | DONE                  | 28440b3     | 68 unit + 74 integration (real PostgreSQL) incl. concurrency, expiry, two-process; also pass via Docker-only test profile. |
 | 5 | Frontend              | DONE                  | c66e142     | React 19 + TS + Vite 7 + TanStack Query; 44 Vitest/RTL/MSW tests pass. |
-| 6 | Docker                | AWAITING CONFIRMATION | 5d7dad0     | Clean down -v + up --build: all healthy; frontend :3000, API :8080; persistence and bonus two-process verified. |
-| 7 | Verification loop     | NOT STARTED           |             |       |
+| 6 | Docker                | DONE                  | 17d65cb     | Clean down -v + up --build: all healthy; frontend :3000, API :8080; persistence and bonus two-process verified. |
+| 7 | Verification loop     | IN PROGRESS           |             |       |
 | 8 | Review & documentation| NOT STARTED           |             |       |
