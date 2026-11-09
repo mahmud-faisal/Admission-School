@@ -6,9 +6,7 @@ namespace SchoolAdmission.IntegrationTests.Concurrency;
 [Trait("Category", "Concurrency")]
 public class ConfirmConcurrencyTests(PostgresFixture postgres) : IntegrationTest(postgres)
 {
-    protected override IReadOnlyDictionary<string, string?> Settings =>
-        new Dictionary<string, string?> { ["HOLD_DURATION_SECONDS"] = "2" };
-
+    // Default 600 s holds: this test must not race expiry.
     [Fact]
     public async Task ConfirmHold_50ParallelConfirms_AllReturn200_ConfirmedSeatsIsOne()
     {
@@ -30,6 +28,14 @@ public class ConfirmConcurrencyTests(PostgresFixture postgres) : IntegrationTest
         seats.GetProperty("heldSeats").GetInt32().Should().Be(0);
         (await ScalarAsync<long>("SELECT count(*) FROM holds WHERE status = 'CONFIRMED'")).Should().Be(1);
     }
+}
+
+/// <summary>Short (2 s) holds so expiry happens during the run; kept apart so other tests are not timing-sensitive.</summary>
+[Trait("Category", "Concurrency")]
+public class MixedLoadConcurrencyTests(PostgresFixture postgres) : IntegrationTest(postgres)
+{
+    protected override IReadOnlyDictionary<string, string?> Settings =>
+        new Dictionary<string, string?> { ["HOLD_DURATION_SECONDS"] = "2" };
 
     /// <summary>
     /// Random applies, confirms and cancels from many students for a few seconds, with 2-second holds so expiry also
