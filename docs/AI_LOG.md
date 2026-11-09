@@ -19,3 +19,12 @@ This file feeds `AI_USAGE.md`.
 | 2026-11-09 | 3 | `DictionaryKeyPolicy = CamelCase` turned the error key `X-Student-Id` into `x-Student-Id`. | Curl smoke test. | Removed the dictionary key policy; the keys are already camelCase where needed. |
 | 2026-11-09 | 3 | Unsupported or invalid `api-version` returned `code: "UnsupportedApiVersion"`/`"InvalidApiVersion"` (Asp.Versioning's own extension) instead of our `UNSUPPORTED_API_VERSION`. | Curl smoke test. | ProblemDetails customization now always overwrites the code for api-versioning problem types. |
 | 2026-11-09 | 3 | Raw System.Text.Json parser messages ("Expected depth to be zero... LineNumber: 0") were shown to the user. | Curl smoke test. | Mapped them to "The request body is not valid JSON." / "Total seats must be a whole number." |
+
+## CP3 API contract audit (api-contract-auditor)
+Caught by live calls + /openapi/v1.json inspection. Details in docs/audits/api-contract-audit-cp3.md.
+- M1 OpenAPI numbers typed integer|string; server accepts "7" for totalSeats (string number handling enabled).
+- M2 OpenAPI ProblemDetails schemas omit `code`/`traceId`; 405/415 undocumented.
+- M3 X-Student-Id shown as optional in OpenAPI though mandatory.
+- M4 Nullable fields (confirmedAt, cancelledAt) not marked nullable in OpenAPI.
+- M5 OpenAPI advertises text/plain and text/json response types; server emits only application/json.
+- M6 Body-binding 400 problem bodies lack type/instance/traceId.
