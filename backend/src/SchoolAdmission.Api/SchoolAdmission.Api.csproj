@@ -3,4 +3,16 @@
     <ProjectReference Include="..\SchoolAdmission.Application\SchoolAdmission.Application.csproj" />
     <ProjectReference Include="..\SchoolAdmission.Infrastructure\SchoolAdmission.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="Asp.Versioning.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SchoolAdmission.IntegrationTests" />
+  </ItemGroup>
 </Project>
