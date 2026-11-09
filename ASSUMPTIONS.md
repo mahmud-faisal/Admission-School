@@ -56,3 +56,11 @@ FluentAssertions 7.x.
 ## Added in Checkpoint 4
 - **PostgreSQL `max_connections=500`** in docker compose. Each backend process keeps a connection pool (Npgsql default: 100), so two processes (the bonus) plus the test runner can exceed the default of 100. At that point PostgreSQL rejects connections and the API returns 500s.
 - **Integration tests use a real PostgreSQL:** Testcontainers locally, or the compose `db` service through `TEST_DATABASE_URL`. Each test gets its own database, cloned from a migrated template.
+
+## Added in Checkpoint 5 (frontend)
+- **Package versions:** the latest release of each well-established major (React 19, TanStack Query 5, React Router 7, Vite 7, Vitest 3, TypeScript 5.9, MSW 2), not the brand-new majors, for a reliable build on the graders' machines.
+- **Student ID field:** accepts digits only and at most 17. Only a valid 17-digit value is saved to localStorage and used. While the user is editing, the last valid ID stays saved, so a refresh still restores it. Clearing the field removes it.
+- **Apply on a full class:** the button is disabled when `availableSeats` is 0. If seats run out between polls, the server's 409 `SEATS_FULL` is shown as a plain message.
+- **Pay/Cancel:** only enabled for the hold's own student (the entered ID matches the hold's `studentId`) while it is HELD and not past `expiresAt`, measured on the server-corrected clock.
+- **Countdown clock:** corrected for clock skew using `serverTime` (DB clock) from hold responses, or the `X-Server-Time` header.
+- **Polling:** classes every 3 s, an open application every 5 s while HELD, My applications every 5 s.
