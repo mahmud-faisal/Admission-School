@@ -27,6 +27,9 @@ export function HoldPage() {
   const expiredLocally = data?.status === 'HELD' && status === 'EXPIRED';
   const refreshed = useRef(false);
   useEffect(() => {
+    refreshed.current = false; // a different application was opened
+  }, [holdId]);
+  useEffect(() => {
     if (expiredLocally && !refreshed.current) {
       refreshed.current = true;
       void queryClient.invalidateQueries({ queryKey: queryKeys.hold(holdId) });
