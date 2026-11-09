@@ -1,0 +1,35 @@
+# School Admission System
+#   Backend tests (Docker only):  docker compose --profile test run --rm backend-tests
+# The backend and frontend services are added in Checkpoint 6.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: admission
+      POSTGRES_USER: admission
+      POSTGRES_PASSWORD: admission
+    # Several backend processes (bonus) and parallel test databases each keep a connection pool.
+    command: ["postgres", "-c", "max_connections=500"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admission -d admission"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend-tests:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: test
+    environment:
+      # Admin connection; each test creates and drops its own database on this server.
+      TEST_DATABASE_URL: "Host=db;Port=5432;Username=admission;Password=admission;Database=postgres"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
