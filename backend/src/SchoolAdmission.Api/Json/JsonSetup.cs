@@ -13,6 +13,8 @@ public static class JsonSetup
     {
         o.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         o.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+        // Web defaults accept "7" for a number; the contract uses real JSON numbers, so be strict.
+        o.NumberHandling = JsonNumberHandling.Strict;
         o.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
         o.Converters.Add(new UtcDateTimeConverter());
     }
