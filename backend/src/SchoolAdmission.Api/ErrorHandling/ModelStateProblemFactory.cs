@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using SchoolAdmission.Application.Common;
 
 namespace SchoolAdmission.Api.ErrorHandling;
@@ -21,13 +23,20 @@ public static class ModelStateProblemFactory
                       .Distinct()
                       .ToArray());
 
-        var problem = new ValidationProblemDetails(errors)
+        // Go through MVC's ProblemDetailsFactory so the shared customization adds type, instance and traceId.
+        var factory = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+        var problem = factory.CreateValidationProblemDetails(
+            context.HttpContext,
+            new ModelStateDictionary(),
+            StatusCodes.Status400BadRequest,
+            title: "Validation failed",
+            detail: errors.Values.SelectMany(v => v).FirstOrDefault());
+        foreach (var (key, messages) in errors)
         {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Validation failed",
-            Detail = errors.Values.SelectMany(v => v).FirstOrDefault(),
-            Extensions = { [ProblemDetailsSetup.CodeKey] = ErrorCodes.ValidationFailed },
-        };
+            problem.Errors[key] = messages;
+        }
+
+        problem.Extensions[ProblemDetailsSetup.CodeKey] = ErrorCodes.ValidationFailed;
 
         return new BadRequestObjectResult(problem) { ContentTypes = { "application/problem+json" } };
     }
