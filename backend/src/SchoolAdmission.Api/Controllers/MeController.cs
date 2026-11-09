@@ -16,7 +16,7 @@ public sealed class MeController(ISender sender) : ControllerBase
 {
     /// <summary>All applications of this student (every status, newest first).</summary>
     [HttpGet("holds")]
-    [ProducesResponseType<IReadOnlyList<MyHoldDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IReadOnlyList<MyHoldDto>>(StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> MyHolds([FromHeader(Name = Headers.StudentId)] string? studentId, CancellationToken ct)
     {

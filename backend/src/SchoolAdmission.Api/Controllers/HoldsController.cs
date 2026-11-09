@@ -18,7 +18,7 @@ public sealed class HoldsController(ISender sender) : ControllerBase
 {
     /// <summary>Current status of an application. Status is HELD, CONFIRMED, EXPIRED or CANCELLED.</summary>
     [HttpGet("{holdId}")]
-    [ProducesResponseType<HoldDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<HoldDto>(StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Get(string holdId, CancellationToken ct)
     {
@@ -28,7 +28,7 @@ public sealed class HoldsController(ISender sender) : ControllerBase
 
     /// <summary>Pay the admission fee: confirm the student's own non-expired HELD application. Idempotent.</summary>
     [HttpPost("{holdId}/confirm")]
-    [ProducesResponseType<HoldConfirmedDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<HoldConfirmedDto>(StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

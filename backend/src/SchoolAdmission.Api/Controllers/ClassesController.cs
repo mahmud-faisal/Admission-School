@@ -22,7 +22,8 @@ public sealed class ClassesController(ISender sender) : ControllerBase
     /// <summary>Create a new class with a name and seat count.</summary>
     [HttpPost]
     [Consumes("application/json")]
-    [ProducesResponseType<ClassDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status415UnsupportedMediaType, "application/problem+json")]
+    [ProducesResponseType<ClassDto>(StatusCodes.Status201Created, "application/json")]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> Create(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CreateClassRequest? request,
@@ -37,12 +38,12 @@ public sealed class ClassesController(ISender sender) : ControllerBase
 
     /// <summary>List all classes with seat counts (oldest first).</summary>
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<ClassDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IReadOnlyList<ClassDto>>(StatusCodes.Status200OK, "application/json")]
     public async Task<IActionResult> List(CancellationToken ct) => Ok(await sender.Send(new ListClassesQuery(), ct));
 
     /// <summary>Seat status of one class.</summary>
     [HttpGet("{classId}")]
-    [ProducesResponseType<ClassDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ClassDto>(StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Get(string classId, CancellationToken ct)
     {
@@ -52,7 +53,7 @@ public sealed class ClassesController(ISender sender) : ControllerBase
 
     /// <summary>Apply: hold a seat for the student for HOLD_DURATION_SECONDS. 409 if no seat is available.</summary>
     [HttpPost("{classId}/holds")]
-    [ProducesResponseType<HoldCreatedDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<HoldCreatedDto>(StatusCodes.Status201Created, "application/json")]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
