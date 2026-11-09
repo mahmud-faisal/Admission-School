@@ -30,7 +30,7 @@ public static class OpenApiSetup
                 o.SubstituteApiVersionInUrl = false;   // no URL segment: paths stay exactly as in the spec
             })
             // Asp.Versioning.OpenApi bridge: one built-in OpenAPI document per API version (v1 today).
-            .AddOpenApi(o => o.Document.AddDocumentTransformer((document, _, _) =>
+            .AddOpenApi(o => o.Document.AddContractTransformers().AddDocumentTransformer((document, _, _) =>
             {
                 document.Info.Title = "School Admission API";
                 document.Info.Description =
