@@ -355,14 +355,15 @@ WHERE class_id = @classId
 -- 6. Insert.
 INSERT INTO holds (id, class_id, student_id, status, created_at, expires_at)
 VALUES (@holdId, @classId, @studentId, 'HELD', @now,
-        date_trunc('second', @now) + make_interval(secs => @holdDurationSeconds))
+        ceil_to_second(@now) + make_interval(secs => @holdDurationSeconds))   -- see note below
 RETURNING id, class_id, student_id, status, created_at, expires_at;
 
 COMMIT;
 ```
 
-`expires_at` is cut to whole seconds, so the stored value and the JSON value (`...:00Z`) are exactly the
-same. The hold therefore lasts between `HOLD_DURATION_SECONDS - 1` and `HOLD_DURATION_SECONDS` seconds.
+`expires_at` is rounded UP to a whole second (implemented as a CASE on `date_trunc`), so the stored value and the JSON
+value (`...:00Z`) are exactly the same, and a hold lasts between `HOLD_DURATION_SECONDS` and `HOLD_DURATION_SECONDS + 1`
+seconds, never less (changed in checkpoint 8 after code review finding S1; it was rounded down before).
 
 **Why this is correct across multiple processes.** `FOR UPDATE` takes a row-level lock in PostgreSQL. It does not
 matter which process, container or connection asks for it. Two transactions for the same class, from
