@@ -147,8 +147,8 @@ public sealed class Class
     public string Id { get; }            // "c_" + 32 hex
     public string Name { get; }          // trimmed, 1..200 chars
     public int TotalSeats { get; }       // 1..100_000
-    public DateTime CreatedAt { get; }   // UTC
-    public static Class Create(string id, string name, int totalSeats, DateTime createdAtUtc);
+    public DateTime CreatedAt { get; }   // UTC, set by the DB (DEFAULT now()) — no app clock
+    public static Class Create(string id, string name, int totalSeats);
 }
 
 public enum HoldStatus { Held, Confirmed, Cancelled, Expired }   // stored and serialized as HELD/CONFIRMED/CANCELLED/EXPIRED
@@ -176,9 +176,12 @@ public static class HoldRules
     // Effective status: a HELD hold whose expiry has passed is EXPIRED, whatever the stored value.
     public static HoldStatus EffectiveStatus(HoldStatus stored, DateTime expiresAtUtc, DateTime dbNowUtc);
     // Used after a conditional UPDATE matched 0 rows, to explain why.
-    public static ConfirmOutcome ClassifyConfirm(HoldSnapshot hold, string studentId, DateTime dbNowUtc);
-    public static CancelOutcome  ClassifyCancel (HoldSnapshot hold, string studentId, DateTime dbNowUtc);
+    // HoldSnapshot (Domain/Holds) carries DbNow, read from PostgreSQL together with the row.
+    public static ConfirmOutcome ClassifyConfirm(HoldSnapshot? hold, string studentId);
+    public static CancelOutcome  ClassifyCancel (HoldSnapshot? hold, string studentId);
 }
+
+public sealed record HoldSnapshot(string Id, string StudentId, HoldStatus Status, DateTime ExpiresAt, DateTime DbNow);
 ```
 
 `dbNowUtc` always comes from PostgreSQL (`now()` / `clock_timestamp()`), never from `DateTime.UtcNow`.
@@ -508,6 +511,10 @@ ORDER BY c.created_at, c.id;
 
 (Two repository methods use the same SQL: one with `@classId`, one without.)
 
+**As implemented (Checkpoint 2):** the code uses two separate statements, because Npgsql cannot infer a type for
+a NULL `@classId`. Each statement uses a `CROSS JOIN LATERAL` subquery with the same `FILTER` counts
+(cast to `int`); the semantics are unchanged. See `ClassRepository`.
+
 ### 4.6 Hold reads
 
 ```sql
@@ -642,7 +649,7 @@ public sealed record ClassSeatsRow(string Id, string Name, int TotalSeats, int H
 public sealed record HoldRow(string Id, string ClassId, string ClassName, string StudentId, HoldStatus Status,
                              DateTime CreatedAt, DateTime ExpiresAt, DateTime? ConfirmedAt,
                              DateTime? CancelledAt, DateTime DbNow);
-public sealed record HoldSnapshot(string Id, string StudentId, HoldStatus Status, DateTime ExpiresAt, DateTime DbNow);
+// HoldSnapshot lives in Domain/Holds (HoldRules consumes it); see §2.1.
 ```
 
 `DuplicateHoldException` lives in Application/Abstractions/Persistence, so the handler can turn it into
