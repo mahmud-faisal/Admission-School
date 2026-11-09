@@ -33,7 +33,8 @@ public sealed class PostgresFixture : IAsyncLifetime
         }
         else
         {
-            _container = new PostgreSqlBuilder("postgres:16-alpine").Build();
+            // Parallel test classes each have their own database and pool; the default 100 connections is too few.
+            _container = new PostgreSqlBuilder("postgres:16-alpine").WithCommand("-c", "max_connections=500").Build();
             await _container.StartAsync();
             _adminConnectionString = _container.GetConnectionString();
         }
@@ -94,7 +95,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     }
 
     private string ForDatabase(string database) =>
-        new NpgsqlConnectionStringBuilder(_adminConnectionString) { Database = database, MaxPoolSize = 200 }.ConnectionString;
+        new NpgsqlConnectionStringBuilder(_adminConnectionString) { Database = database, MaxPoolSize = 50 }.ConnectionString;
 
     private async Task ExecuteAdminAsync(string sql)
     {
