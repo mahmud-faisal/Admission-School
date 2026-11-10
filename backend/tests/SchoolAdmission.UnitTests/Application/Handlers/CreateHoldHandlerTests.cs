@@ -70,7 +70,20 @@ public class CreateHoldHandlerTests
         var result = await Run();
 
         result.IsSuccess.Should().BeTrue();
-        _log.Calls.Should().Equal("Begin", "Lock", "ExpireStale", "HasActive", "Count", "Insert", "Commit");
+        _log.Calls.Should().Equal("Begin", "Lock", "GetConfirmedHold", "ExpireStale", "HasActive", "Count", "Insert", "Commit");
+    }
+
+    [Fact]
+    public async Task CreateHoldHandler_StudentAlreadyAdmitted_ReturnsAlreadyAdmitted()
+    {
+        _holds.ConfirmedHold = new ConfirmedHoldRow("h_other", "c_other", "Class 5", "20152691234567890");
+
+        var result = await Run();
+
+        result.Error!.Code.Should().Be(ErrorCodes.AlreadyAdmitted);
+        result.Error.Kind.Should().Be(ErrorKind.Conflict);
+        result.Error.Message.Should().Contain("Class 5");
+        _log.Calls.Should().Equal("Begin", "Lock", "GetConfirmedHold", "Rollback");
     }
 
     [Fact]

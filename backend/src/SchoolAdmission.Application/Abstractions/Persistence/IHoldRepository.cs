@@ -10,6 +10,9 @@ public interface IHoldRepository
     /// <summary>True if the student has a HELD (not expired) or CONFIRMED hold in the class.</summary>
     Task<bool> HasActiveOrConfirmedAsync(string classId, string studentId, DateTime dbNow, CancellationToken ct);
 
+    /// <summary>Returns the confirmed hold info if the student already has a confirmed admission in any class.</summary>
+    Task<ConfirmedHoldRow?> GetConfirmedHoldAsync(string studentId, CancellationToken ct);
+
     /// <summary>Count of HELD (not expired) + CONFIRMED holds in the class.</summary>
     Task<int> CountOccupiedSeatsAsync(string classId, DateTime dbNow, CancellationToken ct);
 

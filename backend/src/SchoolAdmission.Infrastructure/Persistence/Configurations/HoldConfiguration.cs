@@ -13,6 +13,7 @@ internal sealed class HoldConfiguration : IEntityTypeConfiguration<Hold>
     /// before it checks and inserts (DESIGN §3.2).
     /// </summary>
     public const string ActiveUniqueIndexName = "ux_holds_class_student_active";
+    public const string ConfirmedUniqueIndexName = "ux_holds_student_confirmed";
 
     public void Configure(EntityTypeBuilder<Hold> b)
     {
@@ -49,6 +50,11 @@ internal sealed class HoldConfiguration : IEntityTypeConfiguration<Hold>
             .IsUnique()
             .HasFilter("status IN ('HELD','CONFIRMED')")
             .HasDatabaseName(ActiveUniqueIndexName);
+
+        b.HasIndex(x => x.StudentId)
+            .IsUnique()
+            .HasFilter("status = 'CONFIRMED'")
+            .HasDatabaseName(ConfirmedUniqueIndexName);
 
         b.HasIndex(x => new { x.ClassId, x.Status, x.ExpiresAt }).HasDatabaseName("ix_holds_class_status_expires");
 

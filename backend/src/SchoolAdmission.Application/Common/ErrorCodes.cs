@@ -12,6 +12,7 @@ public static class ErrorCodes
     public const string HoldExpired = "HOLD_EXPIRED";
     public const string HoldCancelled = "HOLD_CANCELLED";
     public const string HoldAlreadyConfirmed = "HOLD_ALREADY_CONFIRMED";
+    public const string AlreadyAdmitted = "ALREADY_ADMITTED";
     public const string Conflict = "CONFLICT";
     public const string UnsupportedApiVersion = "UNSUPPORTED_API_VERSION";
     public const string UnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE";
@@ -36,6 +37,13 @@ public static class Errors
 
     public static readonly Error DuplicateApplication =
         new(ErrorCodes.DuplicateApplication, "The student already has an active application or a confirmed admission in this class.", ErrorKind.Conflict);
+
+    public static Error AlreadyAdmitted(string? className = null) =>
+        new(ErrorCodes.AlreadyAdmitted,
+            string.IsNullOrWhiteSpace(className)
+                ? "The student already has a confirmed admission in a class."
+                : $"The student already has a confirmed admission in class '{className}'.",
+            ErrorKind.Conflict);
 
     public static readonly Error HoldExpired =
         new(ErrorCodes.HoldExpired, "The application has expired and its seat was released.", ErrorKind.Conflict);

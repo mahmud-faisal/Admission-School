@@ -28,6 +28,7 @@ export const MESSAGES = {
     'Sorry, all seats in this class are taken right now. Seats may free up if other applications expire, so please try again later.',
   DUPLICATE_APPLICATION:
     'You already have an active application or admission for this class. See My applications.',
+  ALREADY_ADMITTED: 'You already have a confirmed admission. Additional applications are not permitted.',
   HOLD_EXPIRED: 'This application has expired, so the seat was released. You can apply again if seats are available.',
   HOLD_CANCELLED: 'This application was cancelled.',
   HOLD_ALREADY_CONFIRMED: "Admission is already confirmed; it can't be cancelled here.",
@@ -56,6 +57,7 @@ export function toUserMessage(error: unknown): string {
     switch (error.code) {
       case 'SEATS_FULL':
       case 'DUPLICATE_APPLICATION':
+      case 'ALREADY_ADMITTED':
       case 'HOLD_EXPIRED':
       case 'HOLD_CANCELLED':
       case 'HOLD_ALREADY_CONFIRMED':
