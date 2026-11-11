@@ -27,3 +27,10 @@ public sealed record HoldRow(
     DateTime? ConfirmedAt,
     DateTime? CancelledAt,
     DateTime DbNow);
+
+/// <summary>Information about a student's confirmed hold across any class.</summary>
+public sealed record ConfirmedHoldRow(
+    string HoldId,
+    string ClassId,
+    string ClassName,
+    string StudentId);

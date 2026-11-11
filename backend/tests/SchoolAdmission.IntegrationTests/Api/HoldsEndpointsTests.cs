@@ -75,7 +75,7 @@ public class HoldsEndpointsTests(PostgresFixture postgres) : IntegrationTest(pos
     }
 
     [Fact]
-    public async Task PostHold_DuplicateAfterConfirm_Returns409_DuplicateApplication()
+    public async Task PostHold_AfterConfirm_Returns409_AlreadyAdmitted()
     {
         var classId = await CreateClassAsync();
         var holdId = await ApplyOkAsync(classId, Sid(1));
@@ -84,7 +84,47 @@ public class HoldsEndpointsTests(PostgresFixture postgres) : IntegrationTest(pos
         var again = await ApplyAsync(classId, Sid(1));
 
         again.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await ProblemCodeAsync(again)).Should().Be("DUPLICATE_APPLICATION");
+        (await ProblemCodeAsync(again)).Should().Be("ALREADY_ADMITTED");
+    }
+
+    [Fact]
+    public async Task PostHold_AfterConfirmInDifferentClass_Returns409_AlreadyAdmitted()
+    {
+        var a = await CreateClassAsync("Class 6 - Morning Shift");
+        var b = await CreateClassAsync("Class 6 - Day Shift");
+
+        var holdA = await ApplyOkAsync(a, Sid(1));
+        await ConfirmAsync(holdA, Sid(1));
+
+        var applyB = await ApplyAsync(b, Sid(1));
+        applyB.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await ProblemCodeAsync(applyB)).Should().Be("ALREADY_ADMITTED");
+    }
+
+    [Fact]
+    public async Task ConfirmHold_AutomaticallyCancelsOtherActiveHoldsOfSameStudent()
+    {
+        var a = await CreateClassAsync("Class 6 - Morning Shift");
+        var b = await CreateClassAsync("Class 6 - Day Shift");
+
+        var holdA = await ApplyOkAsync(a, Sid(1));
+        var holdB = await ApplyOkAsync(b, Sid(1));
+
+        // Confirm hold A
+        (await ConfirmAsync(holdA, Sid(1))).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Check hold A is CONFIRMED
+        var getA = await Client.GetAsync($"/holds/{holdA}");
+        (await ReadJsonAsync(getA)).GetProperty("status").GetString().Should().Be("CONFIRMED");
+
+        // Check hold B is now automatically CANCELLED
+        var getB = await Client.GetAsync($"/holds/{holdB}");
+        (await ReadJsonAsync(getB)).GetProperty("status").GetString().Should().Be("CANCELLED");
+
+        // Attempting to confirm hold B returns ALREADY_ADMITTED
+        var confirmB = await ConfirmAsync(holdB, Sid(1));
+        confirmB.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await ProblemCodeAsync(confirmB)).Should().Be("ALREADY_ADMITTED");
     }
 
     [Fact]

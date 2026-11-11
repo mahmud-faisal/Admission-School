@@ -41,6 +41,7 @@ and a test starts two real OS processes against one database.
   **Cancel an expired hold** → `409 HOLD_EXPIRED`. **Cancel an already-cancelled hold** → `204` (DELETE is idempotent).
 - **Applying twice to the same class** → `409 DUPLICATE_APPLICATION`, checked before seat availability because that
   message is more useful. **Re-applying after expiry or cancellation** is allowed and creates a new hold.
+- **Applying after confirmed admission** → `409 ALREADY_ADMITTED`. Once a student has confirmed their admission in any class by completing payment, they cannot apply for any additional class or shift. Concurrently held applications in other classes are automatically cancelled upon payment confirmation, immediately releasing those seats back to the pool. Enforced by PostgreSQL unique partial index `ux_holds_student_confirmed` on `(student_id) WHERE status = 'CONFIRMED'`.
 - **`GET /holds/{id}` needs no `X-Student-Id`**, because the spec lists no header for it. Anyone with the
   unguessable hold ID can read it, including `studentId`; pay and cancel still require the owner's header.
 - **`X-Student-Id`** must be exactly 17 ASCII digits (leading zeros allowed), otherwise `400 INVALID_STUDENT_ID`.

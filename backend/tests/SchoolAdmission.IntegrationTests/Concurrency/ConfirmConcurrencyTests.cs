@@ -28,6 +28,32 @@ public class ConfirmConcurrencyTests(PostgresFixture postgres) : IntegrationTest
         seats.GetProperty("heldSeats").GetInt32().Should().Be(0);
         (await ScalarAsync<long>("SELECT count(*) FROM holds WHERE status = 'CONFIRMED'")).Should().Be(1);
     }
+
+    [Fact]
+    public async Task ConfirmHold_ParallelConfirmsDifferentHolds_SameStudent_ExactlyOneSucceeds()
+    {
+        var classA = await CreateClassAsync("Class A", seats: 5);
+        var classB = await CreateClassAsync("Class B", seats: 5);
+        var holdA = await ApplyOkAsync(classA, Sid(1));
+        var holdB = await ApplyOkAsync(classB, Sid(1));
+
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tasks = new[]
+        {
+            Task.Run(async () => { await gate.Task; return await ConfirmAsync(holdA, Sid(1)); }),
+            Task.Run(async () => { await gate.Task; return await ConfirmAsync(holdB, Sid(1)); }),
+        };
+        gate.SetResult();
+        var responses = await Task.WhenAll(tasks);
+
+        responses.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+
+        (await ScalarAsync<long>("SELECT count(*) FROM holds WHERE student_id = @s AND status = 'CONFIRMED'", ("s", Sid(1))))
+            .Should().Be(1);
+        (await ScalarAsync<long>("SELECT count(*) FROM holds WHERE student_id = @s AND status = 'CANCELLED'", ("s", Sid(1))))
+            .Should().Be(1);
+    }
 }
 
 /// <summary>Short (2 s) holds so expiry happens during the run; kept apart so other tests are not timing-sensitive.</summary>

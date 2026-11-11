@@ -37,6 +37,14 @@ public sealed class CreateHoldHandler(
 
         var now = locked.DbNow;
 
+        // Check if student already has a confirmed admission in ANY class.
+        var confirmed = await holds.GetConfirmedHoldAsync(studentId, cancellationToken);
+        if (confirmed is not null)
+        {
+            await tx.RollbackAsync(cancellationToken);
+            return Errors.AlreadyAdmitted(confirmed.ClassName);
+        }
+
         // 3. Stale HELD rows leave the partial unique index so re-applying after expiry works.
         await holds.ExpireStaleForClassAsync(classId, now, cancellationToken);
 

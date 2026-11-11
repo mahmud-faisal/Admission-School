@@ -91,6 +91,8 @@ public sealed class FakeHoldRepository(CallLog log) : IHoldRepository
 {
     public bool HasActive { get; set; }
 
+    public ConfirmedHoldRow? ConfirmedHold { get; set; }
+
     public int Occupied { get; set; }
 
     public bool ThrowDuplicateOnInsert { get; set; }
@@ -116,6 +118,12 @@ public sealed class FakeHoldRepository(CallLog log) : IHoldRepository
     {
         log.Add("HasActive");
         return Task.FromResult(HasActive);
+    }
+
+    public Task<ConfirmedHoldRow?> GetConfirmedHoldAsync(string studentId, CancellationToken ct)
+    {
+        log.Add("GetConfirmedHold");
+        return Task.FromResult(ConfirmedHold);
     }
 
     public Task<int> CountOccupiedSeatsAsync(string classId, DateTime dbNow, CancellationToken ct)

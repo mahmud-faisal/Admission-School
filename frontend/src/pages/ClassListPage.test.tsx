@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { POLL } from '../api/hooks';
 import { MESSAGES } from '../api/errors';
-import { API, SID, classSeats, hold, problem, server } from '../test/server';
+import { API, SID, classSeats, hold, myHold, problem, server } from '../test/server';
 import { renderApp } from '../test/utils';
 
 describe('ClassListPage', () => {
@@ -67,5 +67,27 @@ describe('ClassListPage', () => {
 
     expect(await screen.findByText('Full')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /apply for class 6/i })).toBeDisabled();
+  });
+
+  it('disables Apply buttons and displays banner when student is already admitted', async () => {
+    server.use(
+      http.get(`${API}/me/holds`, () => HttpResponse.json([myHold({ status: 'CONFIRMED' })])),
+    );
+    renderApp('/', { studentId: SID });
+
+    const banner = await screen.findByTestId('confirmed-banner');
+    expect(banner).toHaveTextContent(/admission confirmed for/i);
+    expect(banner).toHaveTextContent(/Class 6 - Morning Shift/);
+    expect(banner).toHaveTextContent(/you cannot apply for additional classes/i);
+    expect(screen.getByRole('button', { name: /apply for class 6/i })).toBeDisabled();
+  });
+
+  it('shows an already admitted message when the server returns ALREADY_ADMITTED', async () => {
+    server.use(http.post(`${API}/classes/c_1/holds`, () => problem(409, 'ALREADY_ADMITTED')));
+    renderApp('/', { studentId: SID });
+
+    await userEvent.click(await screen.findByRole('button', { name: /apply for class 6/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(MESSAGES.ALREADY_ADMITTED);
   });
 });

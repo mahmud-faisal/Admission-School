@@ -73,26 +73,64 @@ internal sealed class HoldRepository(AdmissionDbContext db) : IHoldRepository
         }
     }
 
-    public async Task<HoldRow?> TryConfirmAsync(string holdId, string studentId, CancellationToken ct)
+    public async Task<ConfirmedHoldRow?> GetConfirmedHoldAsync(string studentId, CancellationToken ct)
     {
-        // One atomic conditional UPDATE: HELD → CONFIRMED can happen at most once, so confirmedSeats grows once.
-        var rows = await db.Database.SqlQuery<HoldSqlRow>($"""
-            WITH u AS (
-                UPDATE holds
-                SET status = 'CONFIRMED', confirmed_at = now()
-                WHERE id = {holdId}
-                  AND student_id = {studentId}
-                  AND status = 'HELD'
-                  AND expires_at > now()
-                RETURNING *
-            )
-            SELECT u.id AS "Id", u.class_id AS "ClassId", c.name AS "ClassName", u.student_id AS "StudentId",
-                   u.status AS "Status", u.created_at AS "CreatedAt", u.expires_at AS "ExpiresAt",
-                   u.confirmed_at AS "ConfirmedAt", u.cancelled_at AS "CancelledAt", now() AS "DbNow"
-            FROM u JOIN classes c ON c.id = u.class_id
+        var rows = await db.Database.SqlQuery<ConfirmedHoldSqlRow>($"""
+            SELECT h.id AS "HoldId", h.class_id AS "ClassId", c.name AS "ClassName", h.student_id AS "StudentId"
+            FROM holds h JOIN classes c ON c.id = h.class_id
+            WHERE h.student_id = {studentId}
+              AND h.status = 'CONFIRMED'
+            LIMIT 1
             """).ToListAsync(ct);
 
         return rows.SingleOrDefault()?.ToRow();
+    }
+
+    public async Task<HoldRow?> TryConfirmAsync(string holdId, string studentId, CancellationToken ct)
+    {
+        try
+        {
+            // One atomic conditional UPDATE: HELD → CONFIRMED can happen at most once, and only if the student has
+            // no already-CONFIRMED hold in any class.
+            // In the same atomic statement, any OTHER active (HELD) holds of this student are immediately CANCELLED,
+            // releasing their seats back to the pool.
+            var rows = await db.Database.SqlQuery<HoldSqlRow>($"""
+                WITH u AS (
+                    UPDATE holds
+                    SET status = 'CONFIRMED', confirmed_at = now()
+                    WHERE id = {holdId}
+                      AND student_id = {studentId}
+                      AND status = 'HELD'
+                      AND expires_at > now()
+                      AND NOT EXISTS (
+                          SELECT 1 FROM holds
+                          WHERE student_id = {studentId}
+                            AND status = 'CONFIRMED'
+                      )
+                    RETURNING *
+                ),
+                c_other AS (
+                    UPDATE holds
+                    SET status = 'CANCELLED', cancelled_at = now()
+                    WHERE student_id = {studentId}
+                      AND id <> {holdId}
+                      AND status = 'HELD'
+                      AND EXISTS (SELECT 1 FROM u)
+                    RETURNING id
+                )
+                SELECT u.id AS "Id", u.class_id AS "ClassId", c.name AS "ClassName", u.student_id AS "StudentId",
+                       u.status AS "Status", u.created_at AS "CreatedAt", u.expires_at AS "ExpiresAt",
+                       u.confirmed_at AS "ConfirmedAt", u.cancelled_at AS "CancelledAt", now() AS "DbNow"
+                FROM u JOIN classes c ON c.id = u.class_id
+                """).ToListAsync(ct);
+
+            return rows.SingleOrDefault()?.ToRow();
+        }
+        catch (PostgresException ex) when (ex.SqlState == UniqueViolation &&
+                                           ex.ConstraintName == HoldConfiguration.ConfirmedUniqueIndexName)
+        {
+            return null;
+        }
     }
 
     public async Task<bool> TryCancelAsync(string holdId, string studentId, CancellationToken ct) =>

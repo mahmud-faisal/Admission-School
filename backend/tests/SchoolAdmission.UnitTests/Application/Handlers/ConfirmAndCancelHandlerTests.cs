@@ -87,6 +87,20 @@ public class ConfirmAndCancelHandlerTests
     }
 
     [Fact]
+    public async Task ConfirmHoldHandler_AlreadyConfirmedElsewhere_ReturnsAlreadyAdmitted()
+    {
+        _holds.ConfirmResults.Enqueue(null);
+        _holds.Snapshots.Enqueue(Snap(HoldStatus.Cancelled));
+        _holds.ConfirmedHold = new ConfirmedHoldRow("h_other", "c_other", "Class 5", Owner);
+
+        var result = await Confirm();
+
+        result.Error!.Code.Should().Be(ErrorCodes.AlreadyAdmitted);
+        result.Error.Kind.Should().Be(ErrorKind.Conflict);
+        result.Error.Message.Should().Contain("Class 5");
+    }
+
+    [Fact]
     public async Task CancelHoldHandler_Matched_Succeeds()
     {
         _holds.CancelResults.Enqueue(true);

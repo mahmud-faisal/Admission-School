@@ -32,3 +32,10 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+#Docs
+docs/
+.claude/
+CLAUDE.md
+School_Admission_System_Assignment_EN.md
+Instruction.md

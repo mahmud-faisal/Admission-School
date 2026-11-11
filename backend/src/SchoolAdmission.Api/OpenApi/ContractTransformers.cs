@@ -52,7 +52,7 @@ internal static class ContractTransformers
             schema.Properties["code"] = new OpenApiSchema
             {
                 Type = JsonSchemaType.String,
-                Description = "Machine-readable error code, e.g. SEATS_FULL, HOLD_EXPIRED, DUPLICATE_APPLICATION, " +
+                Description = "Machine-readable error code, e.g. SEATS_FULL, HOLD_EXPIRED, DUPLICATE_APPLICATION, ALREADY_ADMITTED, " +
                               "INVALID_STUDENT_ID, VALIDATION_FAILED, NOT_FOUND, FORBIDDEN.",
             };
             schema.Properties["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String };

@@ -76,3 +76,16 @@ internal sealed class HoldSnapshotSqlRow
 
     public HoldSnapshot ToSnapshot() => new(Id, StudentId, HoldStatusNames.FromDb(Status), ExpiresAt, DbNow);
 }
+
+internal sealed class ConfirmedHoldSqlRow
+{
+    public string HoldId { get; set; } = string.Empty;
+
+    public string ClassId { get; set; } = string.Empty;
+
+    public string ClassName { get; set; } = string.Empty;
+
+    public string StudentId { get; set; } = string.Empty;
+
+    public ConfirmedHoldRow ToRow() => new(HoldId, ClassId, ClassName, StudentId);
+}

@@ -3,11 +3,12 @@ import type { ClassSeats } from '../api/types';
 interface Props {
   classes: ClassSeats[];
   canApply: boolean;
+  isAdmitted?: boolean;
   applyingClassId?: string;
   onApply: (cls: ClassSeats) => void;
 }
 
-export function ClassTable({ classes, canApply, applyingClassId, onApply }: Props) {
+export function ClassTable({ classes, canApply, isAdmitted = false, applyingClassId, onApply }: Props) {
   return (
     <table className="table">
       <thead>
@@ -37,9 +38,17 @@ export function ClassTable({ classes, canApply, applyingClassId, onApply }: Prop
                 <button
                   type="button"
                   onClick={() => onApply(cls)}
-                  disabled={!canApply || full || busy}
+                  disabled={!canApply || isAdmitted || full || busy}
                   aria-label={`Apply for ${cls.name}`}
-                  title={!canApply ? 'Enter a 17-digit birth registration number first' : full ? 'No seats available' : undefined}
+                  title={
+                    isAdmitted
+                      ? 'Admission is already confirmed'
+                      : !canApply
+                        ? 'Enter a 17-digit birth registration number first'
+                        : full
+                          ? 'No seats available'
+                          : undefined
+                  }
                 >
                   {busy ? 'Applying…' : 'Apply'}
                 </button>

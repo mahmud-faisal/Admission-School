@@ -7,6 +7,7 @@ describe('toUserMessage', () => {
   it.each([
     ['SEATS_FULL', 409],
     ['DUPLICATE_APPLICATION', 409],
+    ['ALREADY_ADMITTED', 409],
     ['HOLD_EXPIRED', 409],
     ['HOLD_CANCELLED', 409],
     ['HOLD_ALREADY_CONFIRMED', 409],

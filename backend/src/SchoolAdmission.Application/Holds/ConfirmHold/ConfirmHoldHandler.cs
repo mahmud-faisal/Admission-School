@@ -28,7 +28,8 @@ public sealed class ConfirmHoldHandler(IHoldRepository holds)
             }
 
             var snapshot = await holds.GetSnapshotAsync(request.HoldId, cancellationToken);
-            switch (HoldRules.ClassifyConfirm(snapshot, studentId))
+            var outcome = HoldRules.ClassifyConfirm(snapshot, studentId);
+            switch (outcome)
             {
                 case ConfirmOutcome.NotFound:
                     return Errors.HoldNotFound(request.HoldId);
@@ -38,9 +39,15 @@ public sealed class ConfirmHoldHandler(IHoldRepository holds)
                     var view = await holds.GetViewAsync(request.HoldId, cancellationToken);
                     return view is null ? Errors.HoldNotFound(request.HoldId) : HoldConfirmedDto.From(view);
                 case ConfirmOutcome.Cancelled:
-                    return Errors.HoldCancelled;
                 case ConfirmOutcome.Expired:
-                    return Errors.HoldExpired;
+                    var confirmedElsewhere = await holds.GetConfirmedHoldAsync(studentId, cancellationToken);
+                    if (confirmedElsewhere is not null && confirmedElsewhere.HoldId != request.HoldId)
+                    {
+                        return Errors.AlreadyAdmitted(confirmedElsewhere.ClassName);
+                    }
+
+                    return outcome == ConfirmOutcome.Cancelled ? Errors.HoldCancelled : Errors.HoldExpired;
+
                 case ConfirmOutcome.StillHeld:
                     continue; // lost a race with another writer; try the UPDATE again
             }
