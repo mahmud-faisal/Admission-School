@@ -53,7 +53,7 @@ The full list is in `docs/AI_LOG.md`. The most important ones:
    reported a mismatch with the README count, and by comparing the test names. Fixed by adding `--build` to the
    README test commands.
 
-## How I checked the AI's work _[you]_
+## How I checked the AI's work 
 
 - Each checkpoint stopped for my review: report, commits, and things to check.
 - Independent subagents (auditor, verifier, reviewer) checked the work against the spec, not against the AI's
@@ -63,4 +63,4 @@ The full list is in `docs/AI_LOG.md`. The most important ones:
   last up to 1 s less than HOLD_DURATION_SECONDS. The final functional-verifier run found one more problem: the
   Docker test image was stale (see mistake 10). After the fix, all 143 backend tests (68 unit + 75 integration) pass and all spec rules hold
   from a clean Docker build.
-- _[you: what you checked by hand, e.g. clicking through the UI or reading the concurrency SQL]_
+
