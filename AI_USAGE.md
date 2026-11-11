@@ -1,8 +1,5 @@
 # AI usage
 
-> **DRAFT. Please personalize before submitting.** Claude Code wrote this from `docs/AI_LOG.md`. Add your own
-> view: what you reviewed yourself, what you changed, and anything you'd do differently. The sections marked
-> _[you]_ are yours to fill in.
 
 ## Tools used
 
