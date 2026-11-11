@@ -16,14 +16,14 @@
 
 ## What the AI did
 
-| Part | AI role | My role _[you]_ |
+| Part | AI role | My role  |
 |---|---|---|
-| Design (Clean Architecture, schema, concurrency design) | Drafted by the architect subagent; open questions were put to me | Answered the 11 open questions (e.g. a CONFIRMED hold can't be cancelled; another student's hold → 403) |
-| Backend (Domain, Application, Infrastructure, Api) | Written by Claude Code | _[you]_ |
-| Tests (unit, integration, concurrency, two-process) | Written by Claude Code | _[you]_ |
-| Frontend (React + TS) | Written by Claude Code | _[you]_ |
+| Design (Clean Architecture, schema, concurrency design) | Drafted by the architect subagent; open questions were put to me |The fundamental Design instructin was given. Over that, the Desing was created by the AI. Additionally, During desing I have to Answered the 11 open questions (e.g. a CONFIRMED hold can't be cancelled; another student's hold → 403) |
+| Backend (Domain, Application, Infrastructure, Api) | Written by Claude Code | Instructed follow the Desing prepared at phase-1, Reviewed code and Commit|
+| Tests (unit, integration, concurrency, two-process) | Written by Claude Code | Reviewed The test code |
+| Frontend (React + TS) | Written by Claude Code | I found a scope to enhance a feature. I added the feature and maintained that from Backend and Frontend |
 | Docker / compose | Written by Claude Code | Freed port 3000 on my machine for verification |
-| Docs (README, ASSUMPTIONS, this file) | Drafted by Claude Code | _[you]_ |
+| Docs (README, ASSUMPTIONS, this file) | Drafted by Claude Code | Checked those files and added necessary informations  |
 
 ## Where the AI made mistakes, and how they were caught
 
